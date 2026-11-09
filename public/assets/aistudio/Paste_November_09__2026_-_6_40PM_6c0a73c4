@@ -1,0 +1,1967 @@
+# Aegis — FINAL HOSTILE VERIFICATION
+## Evidence Pipeline, Provenance, Source Lifecycle, Entity Resolution, Jurisdiction & Financial Analysis
+
+### ROLE
+
+Act as an independent hostile verification auditor for the Aegis codebase.
+
+The previous remediation agent claims that the remaining critical evidence, provenance, entity-resolution, jurisdiction, and financial-analysis defects have been fixed and that the system is:
+
+> `FINAL REMEDIATION COMPLETE — READY FOR HOSTILE VERIFICATION`
+
+Do **not** accept this claim as evidence.
+
+Your job is to independently determine whether the implementation actually satisfies the claimed security, correctness, provenance, open-world, and financial-analysis requirements.
+
+---
+
+# 1. ABSOLUTE AUDIT RULES
+
+### READ-ONLY VERIFICATION
+
+**Do not modify production code.**
+
+Do not:
+
+- fix bugs
+- refactor code
+- change thresholds
+- modify tests
+- add fallback logic
+- rewrite source-selection logic
+- change configuration
+- alter fixtures
+- weaken assertions
+- disable failing tests
+- make tests pass artificially
+
+You may create temporary audit scripts outside the production codebase if necessary.
+
+Any temporary artifact must be clearly identified as an audit artifact and must not alter production behavior.
+
+---
+
+### DO NOT TRUST CLAIMS
+
+Treat:
+
+- previous agent reports
+- comments
+- test names
+- function names
+- variable names
+- logs claiming success
+- "verified" labels
+- confidence scores
+- source tiers
+- test counts
+- previous audit results
+
+as **claims requiring independent verification**.
+
+Evidence must come from:
+
+1. actual source code
+2. actual execution
+3. actual network behavior
+4. actual retrieved documents
+5. actual source URLs
+6. actual parsed facts
+7. actual provenance chains
+8. actual financial calculations
+9. actual test behavior
+
+---
+
+# 2. FIRST: RECONSTRUCT THE REAL PIPELINE
+
+Trace the complete runtime path from:
+
+```text
+User Query
+    ↓
+Query Intelligence
+    ↓
+Entity Resolution
+    ↓
+Jurisdiction Resolution
+    ↓
+Source Discovery
+    ↓
+Source Selection
+    ↓
+HTTP Retrieval
+    ↓
+Document Validation
+    ↓
+Parsing / Extraction
+    ↓
+Fact Creation
+    ↓
+Fact Provenance
+    ↓
+Cross Validation
+    ↓
+Financial Analysis
+    ↓
+Confidence
+    ↓
+Final Report
+```
+
+Do not assume this is the actual architecture.
+
+Determine the actual order from executable code.
+
+For every stage identify:
+
+- file
+- class
+- function
+- caller
+- input
+- output
+- fallback
+- error behavior
+- network operation
+- persistence
+- provenance mutation
+
+Produce the actual runtime graph.
+
+Explicitly detect whether any stage can bypass another stage.
+
+---
+
+# 3. CF-02 — PROVENANCE & SYNTHETIC CONSENSUS
+
+This is a **P0 verification target**.
+
+The remediation claims:
+
+- synthetic `candidateValues` fallback was deleted
+- candidate values are independently extracted
+- `SINGLE_SOURCE` is emitted correctly
+- `VERIFIED_MULTI_SOURCE` requires independent evidence
+- source lifecycle is corrected
+
+Do not trust this claim.
+
+## 3.1 Inspect CrossValidator
+
+Find every place where these concepts are produced or modified:
+
+```text
+candidateValues
+secondaryValue
+EXACT_CONSENSUS
+VERIFIED_MULTI_SOURCE
+SINGLE_SOURCE
+agreement
+consensus
+cross-validation
+```
+
+Determine whether every value represents an independently observed fact.
+
+### Mandatory invariant
+
+If only one source actually produced a metric:
+
+```text
+candidateValues.length MUST NOT exceed 1
+```
+
+and:
+
+```text
+VERIFIED_MULTI_SOURCE MUST NOT be possible
+```
+
+unless a second source independently produced the same fact.
+
+---
+
+## 3.2 Hostile synthetic-consensus test
+
+Construct a scenario where:
+
+```text
+Source A:
+Revenue = 100
+HTTP 200
+Successfully parsed
+
+Source B:
+selected
+HTTP 200
+but produces NO revenue fact
+```
+
+Expected:
+
+```text
+candidateValues = [100]
+```
+
+NOT:
+
+```text
+candidateValues = [100, 100]
+```
+
+and NOT:
+
+```text
+EXACT_CONSENSUS
+```
+
+unless Source B independently supplied 100.
+
+Then create:
+
+```text
+Source A = 100
+Source B = 101
+```
+
+and verify that the system does not fabricate agreement.
+
+---
+
+# 4. SOURCE LIFECYCLE INTEGRITY
+
+Verify that source lifecycle state reflects reality.
+
+Expected conceptual lifecycle:
+
+```text
+DISCOVERED
+    ↓
+SELECTED
+    ↓
+FETCHED
+    ↓
+PARSED
+    ↓
+PRODUCED_FACT
+    ↓
+USED_IN_ANALYSIS
+```
+
+A source that was merely selected must not become:
+
+```text
+USED_IN_ANALYSIS
+```
+
+automatically.
+
+A source that was fetched but produced zero relevant facts must not be reported as a source that supplied financial evidence.
+
+For every lifecycle transition identify the exact code that causes it.
+
+---
+
+# 5. SOURCE SELECTION VS ACTUAL SOURCE USAGE
+
+This is a separate mandatory audit.
+
+For every final financial report determine:
+
+### Selected sources
+
+Which sources were selected?
+
+### Retrieved sources
+
+Which sources were actually HTTP fetched?
+
+### Parsed sources
+
+Which fetched sources were successfully parsed?
+
+### Fact-producing sources
+
+Which sources actually produced facts?
+
+### Analysis sources
+
+Which sources actually contributed values to calculations?
+
+### Reported sources
+
+Which sources are displayed to the user?
+
+These sets must not be silently conflated.
+
+Construct a matrix:
+
+| Source | Selected | Fetched | Parsed | Produced Fact | Used in Analysis | Reported |
+|---|---:|---:|---:|---:|---:|---:|
+
+Any mismatch must be explained.
+
+---
+
+# 6. ACTUAL URL PROVENANCE
+
+For every financial fact:
+
+```text
+Fact
+→ Source
+→ URL
+→ Retrieval
+→ Document
+→ Parser
+→ Extracted value
+```
+
+must be traceable.
+
+The system must not:
+
+- retrieve Source A
+- use value from Source B
+- attach Source A's URL
+- report Source A as provenance
+
+Search for:
+
+```text
+defaultPrimarySource
+fallback source
+fallback URL
+source override
+source substitution
+synthetic provenance
+hardcoded source
+hardcoded URL
+```
+
+Any production fallback that can fabricate provenance is a failure.
+
+---
+
+# 7. CF-03 — OPEN-SOURCE ENTITY VERIFICATION
+
+The remediation claims official GitHub repositories now receive authoritative entity matching.
+
+Verify this independently.
+
+Test at minimum:
+
+- PostgreSQL
+- Python
+- Redis
+- Kubernetes
+- Rust
+- Linux
+- Nginx
+
+For each:
+
+1. Resolve entity.
+2. Identify official organization/repository.
+3. Verify entity relationship.
+4. Fetch actual GitHub data.
+5. Verify stars are real.
+6. Verify repository identity.
+7. Verify source URL.
+8. Verify the fact enters analysis.
+9. Verify no unrelated repository is substituted.
+
+For PostgreSQL specifically:
+
+```text
+PostgreSQL
+```
+
+must resolve to the PostgreSQL project, not:
+
+- a similarly named company
+- a random GitHub repository
+- Kubernetes
+- another database
+- a homonym
+
+---
+
+# 8. TEST FOR OPEN-SOURCE FALLBACK CONTAMINATION
+
+Create deliberately ambiguous queries:
+
+```text
+postgres
+python
+rust
+linux
+redis
+```
+
+and verify that the resolver does not silently select an unrelated company, repository, product, or biological entity.
+
+Then test explicit forms:
+
+```text
+PostgreSQL database
+Python programming language
+Rust programming language
+Linux kernel
+Redis database
+```
+
+Compare results.
+
+The contextual resolver must improve disambiguation without creating hardcoded company-specific branches.
+
+---
+
+# 9. TEST THE TEST
+
+Inspect the PostgreSQL test.
+
+Determine whether it can actually fail if:
+
+- no stars fact exists
+- wrong repository is selected
+- wrong entity is selected
+- fabricated data is returned
+- stale fixture data is returned
+
+Reject any test containing a vacuous structure such as:
+
+```typescript
+if (starsFact) {
+    assert(...)
+}
+```
+
+unless absence itself is explicitly asserted as failure.
+
+The test must prove the property it claims to verify.
+
+---
+
+# 10. CF-06 — AMBIGUOUS ENTITY RESOLUTION
+
+Verify that bare ambiguous names halt safely.
+
+Test:
+
+```text
+Amazon
+Apple
+Tata
+Reliance
+Python
+```
+
+Expected behavior should be deterministic and evidence-driven.
+
+Then test explicit identities:
+
+```text
+Amazon.com
+Amazon River
+Apple Inc.
+Tata Motors
+Reliance Industries
+Python programming language
+```
+
+Verify correct resolution.
+
+---
+
+# 11. AMAZON FAILURE MODE
+
+Specifically investigate the previous defect where:
+
+```text
+Amazon
+```
+
+could resolve automatically to Amazon.com.
+
+Determine whether:
+
+- lexical ranking
+- popularity
+- search ranking
+- first result
+- default company
+- domain heuristic
+
+can override ambiguity.
+
+If multiple valid entities exist and no sufficient contextual evidence exists:
+
+```text
+HALT / REQUIRE DISAMBIGUATION
+```
+
+is preferred over guessing.
+
+---
+
+# 12. RATE-LIMIT / TEMPORARY FAILURE BEHAVIOR
+
+Determine whether rate limiting can accidentally produce:
+
+```text
+unknown entity
+→ default entity
+→ wrong entity
+```
+
+or:
+
+```text
+failed lookup
+→ cached unrelated entity
+```
+
+Temporary network failure must not mutate semantic identity.
+
+Test:
+
+```text
+429
+500
+502
+503
+timeout
+DNS failure
+empty response
+malformed response
+```
+
+Verify that identity does not silently change.
+
+---
+
+# 13. CF-07 — JURISDICTION RESOLUTION
+
+The previous implementation had:
+
+```text
+country = United States
+jurisdictionCode = US
+```
+
+as a dangerous default.
+
+Search the entire production codebase for:
+
+```text
+United States
+US
+USA
+default country
+default jurisdiction
+country =
+jurisdictionCode =
+```
+
+Determine whether any generic default can still assign US jurisdiction.
+
+### Mandatory rule
+
+If jurisdiction cannot be established:
+
+```text
+JURISDICTION_UNRESOLVED
+```
+
+or equivalent explicit uncertainty is required.
+
+It must not silently become US.
+
+---
+
+# 14. CONFLICTING JURISDICTION SIGNALS
+
+Create hostile cases where signals conflict.
+
+Example:
+
+```text
+Wikidata → Netherlands
+SEC → United States
+Official company site → Netherlands
+ISIN → Netherlands
+```
+
+Determine how the system resolves conflict.
+
+It must have an explicit authority hierarchy.
+
+Do not allow:
+
+```text
+first signal wins
+last signal wins
+US wins
+search result wins
+```
+
+without documented justification.
+
+---
+
+# 15. FOREIGN ENTITY TEST MATRIX
+
+Verify at minimum:
+
+- ASML → Netherlands
+- TSMC → Taiwan
+- Vale → Brazil
+- Novo Nordisk → Denmark
+- Equinor → Norway
+- Sony → Japan
+- Commonwealth Bank → Australia
+- BHP → Australia
+- AstraZeneca → United Kingdom
+- Petrobras → Brazil
+- DBS → Singapore
+- Volvo → Sweden
+- Banco Santander → Spain
+- ITOCHU → Japan
+- LVMH → France
+- SAP → Germany
+- RBC → Canada
+
+For each verify:
+
+```text
+entity
+country
+jurisdiction
+primary regulator/exchange
+currency
+legal identity
+```
+
+---
+
+# 16. UNSEEN-ENTITY TEST
+
+Select at least 10 entities that were not explicitly mentioned in the remediation report.
+
+Do not modify the resolver for them.
+
+Include:
+
+- public company
+- foreign company
+- private company
+- open-source project
+- ambiguous brand
+- organization
+- technology
+- company with multiple subsidiaries
+- company with similar-name entities
+- company with unusual jurisdiction
+
+The system must work because of general architecture, not because those entities were manually added.
+
+---
+
+# 17. CLOSED-WORLD DETECTION
+
+Search production code for:
+
+- company names
+- repository names
+- hardcoded metrics
+- company-specific URLs
+- entity-specific branches
+- special-case financial values
+- special-case country mappings
+- special-case source mappings
+- known test entity IDs leaking into production logic
+
+Create a report:
+
+```text
+Hardcoded entity-specific production logic:
+FOUND / NOT FOUND
+```
+
+For every finding determine whether it is:
+
+```text
+legitimate domain metadata
+```
+
+or:
+
+```text
+closed-world workaround
+```
+
+---
+
+# 18. CF-08 — LEGAL ENTITY INTEGRITY
+
+Verify that the resolver cannot confuse:
+
+- operating company
+- foundation
+- news article
+- Wikinews page
+- scandal page
+- person
+- subsidiary
+- similarly named company
+- historical entity
+
+with the intended operating company.
+
+Test:
+
+### Commonwealth Bank
+
+Ensure:
+
+```text
+Commonwealth Bank
+```
+
+does not resolve to:
+
+- Commonwealth Bank-related Wikinews page
+- unrelated foundation
+- news article
+
+### Novo Nordisk
+
+Ensure:
+
+```text
+Novo Nordisk
+```
+
+does not resolve to a foundation or unrelated entity.
+
+### TSMC
+
+Ensure aliases and legal-name normalization resolve to the actual semiconductor company.
+
+### Vale
+
+Ensure legal suffix/alias normalization does not alter identity.
+
+---
+
+# 19. LEGAL NAME NORMALIZATION
+
+Test normalization of:
+
+```text
+& vs and
+Ltd vs Limited
+Inc vs Incorporated
+Corp vs Corporation
+PLC
+N.V.
+S.A.
+AG
+SE
+GmbH
+Co., Ltd.
+```
+
+Normalization must improve identity matching without collapsing distinct entities.
+
+---
+
+# 20. WIKIDATA ENTITY-TYPE FILTERING
+
+Inspect the Wikidata resolver.
+
+Verify that it rejects or deprioritizes entities classified as:
+
+- news
+- Wikinews
+- foundation
+- person
+- scandal
+- article
+- historical event
+
+when resolving operating companies.
+
+But do not simply blacklist words.
+
+Verify semantic/entity-type filtering.
+
+---
+
+# 21. CF-01 — FINANCIAL PERIOD INTEGRITY
+
+Reproduce the original NVIDIA corruption test.
+
+Verify:
+
+```text
+Revenue
+Operating Income
+Net Income
+Assets
+Liabilities
+Equity
+```
+
+all belong to the same:
+
+```text
+entity
+currency
+fiscal year
+period end
+period type
+consolidation scope
+```
+
+Then independently recompute:
+
+```text
+Operating Margin
+Net Margin
+Asset Turnover
+ROA
+ROE
+DuPont
+Altman-related inputs
+```
+
+from raw facts.
+
+The engine must not mix:
+
+```text
+FY2022 Revenue
++
+FY2026 Operating Income
++
+FY2026 Net Income
+```
+
+---
+
+# 22. PERIOD-CONTAMINATION ATTACK
+
+Construct a dataset containing:
+
+```text
+FY2022 revenue
+FY2023 revenue
+FY2024 revenue
+FY2025 revenue
+FY2026 revenue
+```
+
+and intentionally place them in an inconvenient order.
+
+Verify that the engine selects the correct requested/latest period by:
+
+```text
+period end
+```
+
+rather than:
+
+```text
+first array element
+first tag
+first available fact
+```
+
+or:
+
+```text
+latest insertion order
+```
+
+---
+
+# 23. MULTI-CURRENCY ATTACK
+
+Create:
+
+```text
+Revenue = USD
+Operating Income = INR
+Assets = EUR
+```
+
+Verify that financial ratios are blocked or normalized using a verified FX methodology.
+
+Never silently divide incompatible currencies.
+
+---
+
+# 24. CONSOLIDATION ATTACK
+
+Create:
+
+```text
+Consolidated Revenue
+Parent-only Revenue
+Segment Revenue
+```
+
+Verify that the engine cannot mix them.
+
+---
+
+# 25. FINANCIAL ENGINE INPUT CONTRACT
+
+Inspect the interface between:
+
+```text
+FactExtractor
+→ FinancialAnalysisEngine
+```
+
+Verify that the analysis engine receives facts containing sufficient identity metadata:
+
+```text
+entity
+legal entity
+currency
+fiscal year
+period start
+period end
+period type
+consolidation
+source
+source URL
+retrieval timestamp
+```
+
+The FinancialAnalysisEngine must reject invalid or ambiguous facts rather than assuming correctness.
+
+---
+
+# 26. INDEPENDENT FINANCIAL RECOMPUTATION
+
+For at least 5 entities independently calculate several ratios from the retrieved raw facts.
+
+Do not use the Aegis calculation engine to validate itself.
+
+Compare:
+
+```text
+Aegis result
+vs
+independent calculation
+```
+
+Investigate every mismatch.
+
+Use at minimum:
+
+- NVIDIA
+- Bajaj Finance
+- Tata Industries
+- ASML
+- one unseen entity
+
+---
+
+# 27. WIKIPEDIA PRIMARY-FACT ATTACK
+
+Verify that Wikipedia cannot become:
+
+```text
+PRIMARY_FACT
+```
+
+for financial values.
+
+Test:
+
+```text
+Wikipedia revenue
+Wikipedia net income
+Wikipedia assets
+Wikipedia equity
+```
+
+and inspect provenance.
+
+Wikipedia may be used as:
+
+```text
+SECONDARY / DISCOVERY
+```
+
+but must not silently become authoritative primary financial evidence.
+
+---
+
+# 28. SECONDARY SOURCE CONTAMINATION
+
+Create a case where:
+
+```text
+Official filing:
+Revenue = 100
+
+Secondary source:
+Revenue = 120
+```
+
+Verify:
+
+- both facts remain distinguishable
+- authority hierarchy is preserved
+- conflict is surfaced
+- secondary source does not overwrite primary evidence
+- final confidence reflects disagreement
+
+---
+
+# 29. SOURCE AUTHORITY VS SEARCH RANK
+
+Verify that source selection is NOT based primarily on:
+
+```text
+search ranking
+SEO ranking
+first result
+popularity
+page position
+```
+
+Test a low-authority result appearing first and a high-authority official filing appearing later.
+
+The official source should win according to the defined authority model.
+
+---
+
+# 30. CF-05 — HTTP & DOCUMENT INTEGRITY
+
+Verify:
+
+```text
+HTTP 200 → potentially valid
+HTTP 404 → rejected
+HTTP 403 → rejected
+HTTP 500 → rejected
+HTTP 502 → rejected
+HTTP 503 → rejected
+```
+
+No failed response may receive fabricated:
+
+```text
+file size
+publication date
+retrieval metadata
+confidence
+```
+
+Search for suspicious constants such as:
+
+```text
+48
+48KB
+2450
+2450KB
+92
+184.5
+64
+```
+
+and determine whether any remain as synthetic telemetry.
+
+---
+
+# 31. PDF MAGIC-BYTE VALIDATION
+
+A URL ending in:
+
+```text
+.pdf
+```
+
+must not automatically be treated as a PDF.
+
+Test a server response:
+
+```text
+Content-Type: application/pdf
+```
+
+whose body is actually HTML.
+
+Verify that the parser checks actual document structure/magic bytes.
+
+Expected PDF signature:
+
+```text
+%PDF-
+```
+
+A fake PDF response must be rejected or correctly classified.
+
+---
+
+# 32. SOURCE URL REALITY TEST
+
+For every final source:
+
+Verify:
+
+```text
+actual URL
+→ actual request
+→ actual HTTP status
+→ actual response bytes
+→ actual parsed document
+→ actual fact
+```
+
+No fabricated:
+
+```text
+status
+size
+date
+content
+```
+
+is permitted.
+
+---
+
+# 33. SECURITY / NETWORK VERIFICATION
+
+Verify that all external requests use the secure HTTP layer.
+
+Inspect:
+
+- SSRF protection
+- loopback blocking
+- link-local blocking
+- metadata endpoint blocking
+- private IP blocking
+- redirect validation
+- DNS rebinding protection
+- TLS validation
+- hostname/SNI handling
+- socket address validation
+
+Test:
+
+```text
+127.0.0.1
+localhost
+169.254.169.254
+10.0.0.0/8
+172.16.0.0/12
+192.168.0.0/16
+IPv6 loopback
+IPv6 link-local
+redirect → private IP
+redirect → localhost
+DNS rebinding
+```
+
+A URL that is safe during initial validation but unsafe after resolution must not be reachable.
+
+---
+
+# 34. DNS TOCTOU
+
+Explicitly inspect whether:
+
+```text
+DNS validation
+```
+
+and:
+
+```text
+actual connection
+```
+
+can resolve different addresses.
+
+Determine whether the connection is pinned/validated against the already-approved destination.
+
+Do not accept a superficial:
+
+```text
+validate hostname → fetch hostname
+```
+
+implementation as sufficient.
+
+---
+
+# 35. PRIVATE COMPANIES
+
+Test:
+
+```text
+SpaceX
+Stripe
+OpenAI
+```
+
+or other appropriate private entities.
+
+If reliable financial evidence is unavailable:
+
+```text
+DO NOT FABRICATE
+```
+
+The system should produce an explicit:
+
+```text
+insufficient public financial evidence
+```
+
+or equivalent state.
+
+It must not invent:
+
+- revenue
+- assets
+- income
+- valuation
+- margins
+
+---
+
+# 36. ZERO-FACT BEHAVIOR
+
+Test a valid entity where no usable financial facts can be retrieved.
+
+Expected:
+
+```text
+ExplainableHalt / InsufficientEvidence
+```
+
+rather than:
+
+```text
+default values
+synthetic values
+zero values interpreted as real facts
+stale cached values
+random secondary metrics
+```
+
+Verify that zero facts cannot accidentally enter the financial engine.
+
+---
+
+# 37. CACHE CONTAMINATION
+
+Test:
+
+```text
+Company A
+→ retrieve data
+→ cache
+
+Company B
+→ request same metric
+```
+
+Verify Company B cannot receive Company A's cached fact.
+
+Also test:
+
+```text
+same name
+different jurisdiction
+different entity ID
+```
+
+Cache keys must include sufficient identity context.
+
+---
+
+# 38. ENTITY CONTAMINATION
+
+Run sequential requests:
+
+```text
+NVIDIA
+Apple
+ASML
+Amazon
+TSMC
+Vale
+PostgreSQL
+Python
+```
+
+Verify no state from one entity contaminates another.
+
+Inspect:
+
+- singleton state
+- static variables
+- caches
+- global registries
+- mutable shared arrays
+- previous entity context
+- source ledger reuse
+
+---
+
+# 39. CONCURRENCY TEST
+
+Run multiple analyses concurrently for different entities.
+
+Example:
+
+```text
+NVIDIA
+ASML
+TSMC
+Bajaj Finance
+PostgreSQL
+Python
+```
+
+at the same time.
+
+Verify that:
+
+```text
+facts
+sources
+jurisdiction
+currency
+entity IDs
+confidence
+reports
+```
+
+remain isolated.
+
+A race condition that only appears under concurrency must be reported as a correctness defect.
+
+---
+
+# 40. CLOSED-WORLD / HARD-CODED DATA ATTACK
+
+Search for:
+
+```text
+if (entity === "NVIDIA")
+if (company === "Apple")
+if (name.includes("Amazon"))
+switch(entity)
+knownCompanies
+knownRepositories
+financialSeeds
+companyMetrics
+defaultMetrics
+```
+
+Also inspect JSON, YAML, TS, Swift, database seed files and fixtures.
+
+Distinguish:
+
+```text
+test fixture
+```
+
+from:
+
+```text
+production data source
+```
+
+Any production-specific workaround must be reported.
+
+---
+
+# 41. TEST-THE-TESTS
+
+For every important regression test determine:
+
+### Can it fail?
+
+Intentionally break the relevant property in a temporary isolated audit copy.
+
+Examples:
+
+- remove provenance
+- return wrong GitHub repository
+- inject stale revenue
+- inject Wikipedia value
+- set country to US
+- fabricate candidate value
+- return 404
+- return HTML pretending to be PDF
+- return wrong entity
+
+If the test still passes, classify it as:
+
+```text
+WEAK / VACUOUS TEST
+```
+
+---
+
+# 42. TEST COVERAGE QUALITY
+
+Do not report merely:
+
+```text
+11/11 passed
+```
+
+as evidence of correctness.
+
+Classify tests as:
+
+```text
+UNIT
+INTEGRATION
+LIVE NETWORK
+ADVERSARIAL
+REGRESSION
+INVARIANT
+END-TO-END
+TEST-THE-TEST
+```
+
+Determine which critical requirements have no effective test.
+
+---
+
+# 43. LIVE NETWORK VERIFICATION
+
+Where network access is available, independently verify actual live retrieval.
+
+For every selected source capture:
+
+```text
+URL
+HTTP status
+response size
+retrieval timestamp
+content type
+document signature
+```
+
+Do not rely solely on application telemetry.
+
+Where live access is unavailable, clearly distinguish:
+
+```text
+NOT VERIFIED
+```
+
+from:
+
+```text
+PASSED
+```
+
+---
+
+# 44. OPEN-WORLD VERIFICATION
+
+The architecture must support entities that were never previously encoded.
+
+Choose at least 10 unseen entities.
+
+Do not add special handling.
+
+Verify:
+
+```text
+resolve
+jurisdiction
+discover sources
+retrieve
+parse
+extract
+attribute
+analyze
+```
+
+If any stage requires a manual entity-specific branch, report it.
+
+---
+
+# 45. FINANCIAL REPORT QUALITY
+
+For each successfully analyzed company verify:
+
+### Identity
+
+Correct legal entity.
+
+### Jurisdiction
+
+Correct country and regulatory context.
+
+### Currency
+
+Consistent or correctly normalized.
+
+### Fiscal period
+
+Consistent.
+
+### Consolidation
+
+Consistent.
+
+### Sources
+
+Actual sources.
+
+### Provenance
+
+Fact-level.
+
+### Calculations
+
+Independently reproducible.
+
+### Confidence
+
+Derived from evidence quality, not simply source count.
+
+### Missing data
+
+Explicitly represented.
+
+---
+
+# 46. CONFIDENCE MODEL ATTACK
+
+Determine whether confidence can be artificially inflated by:
+
+```text
+multiple selected sources
+```
+
+even when those sources produced no facts.
+
+Confidence must depend on actual evidence quality.
+
+Test:
+
+```text
+4 selected sources
+1 actual fact-producing source
+```
+
+versus:
+
+```text
+2 independently verified fact-producing sources
+```
+
+The second scenario should generally receive stronger evidentiary support.
+
+---
+
+# 47. PROVENANCE IMMUTABILITY
+
+Once a fact has been extracted:
+
+```text
+fact.source
+fact.sourceUrl
+fact.retrievedAt
+fact.documentHash
+fact.parser
+```
+
+must not be silently replaced later.
+
+Trace object mutation across:
+
+```text
+FactExtractor
+CrossValidator
+AnalysisEngine
+ConfidenceModel
+ReportGenerator
+```
+
+Detect provenance laundering.
+
+---
+
+# 48. FACT OBJECT INTEGRITY
+
+Every financial fact should have enough metadata to answer:
+
+> Where exactly did this number come from, and why is it valid for this calculation?
+
+Verify at minimum:
+
+```text
+value
+unit
+currency
+entity
+entity ID
+period start
+period end
+period type
+consolidation
+source ID
+source URL
+retrieval metadata
+authority
+confidence
+```
+
+Report missing fields that can materially affect correctness.
+
+---
+
+# 49. SAME NUMBER, DIFFERENT MEANING
+
+Test cases where the same numerical value appears in multiple contexts.
+
+Example:
+
+```text
+Revenue = 100
+Assets = 100
+Segment Revenue = 100
+Quarterly Revenue = 100
+Annual Revenue = 100
+```
+
+Verify that semantic metadata, not the number itself, determines fact identity.
+
+---
+
+# 50. NO SILENT FALLBACK
+
+Search every critical stage for:
+
+```text
+||
+??
+default
+fallback
+catch
+else
+```
+
+Do not automatically classify every fallback as a defect.
+
+For each relevant fallback determine:
+
+```text
+What happens?
+Can it create a false fact?
+Can it change entity identity?
+Can it alter provenance?
+Can it alter jurisdiction?
+Can it inflate confidence?
+Can it alter financial analysis?
+```
+
+Report only material cases, but inspect comprehensively.
+
+---
+
+# 51. FINAL END-TO-END HOSTILE SCENARIOS
+
+Run these scenarios:
+
+### Scenario A — NVIDIA
+
+Previously vulnerable to cross-period contamination.
+
+Expected:
+
+- correct fiscal period
+- correct currency
+- correct margins
+- correct provenance
+
+### Scenario B — Bajaj Finance
+
+Previously vulnerable to source spoofing.
+
+Expected:
+
+- actual source attribution
+- no fake BSE provenance
+- lifecycle reflects actual usage
+
+### Scenario C — PostgreSQL
+
+Previously vulnerable to Kubernetes contamination.
+
+Expected:
+
+- official PostgreSQL repository
+- correct stars
+- actual GitHub source
+- no Kubernetes substitution
+
+### Scenario D — Commonwealth Bank
+
+Previously vulnerable to Wikinews/entity contamination.
+
+Expected:
+
+- actual operating company
+- correct Australia jurisdiction
+- no news entity
+
+### Scenario E — Novo Nordisk
+
+Previously vulnerable to foundation contamination.
+
+Expected:
+
+- operating company
+- Denmark
+- correct legal identity
+
+### Scenario F — TSMC
+
+Expected:
+
+- Taiwan
+- correct legal entity
+- no US fallback
+
+### Scenario G — Private company
+
+Expected:
+
+- no fabricated financial metrics
+
+### Scenario H — Dead PDF
+
+Expected:
+
+- HTTP failure rejected
+- no fabricated metadata
+- no primary-source classification
+
+---
+
+# 52. REQUIRED FINAL REPORT
+
+Produce a forensic report containing:
+
+## Executive Verdict
+
+Exactly one:
+
+```text
+APPROVED FOR PRODUCTION
+```
+
+or
+
+```text
+NOT APPROVED — REMEDIATION REQUIRED
+```
+
+or
+
+```text
+INSUFFICIENT EVIDENCE
+```
+
+Do not use "approved" merely because tests pass.
+
+---
+
+## Findings Table
+
+| ID | Severity | Finding | Evidence | Reproduction | Impact | Status |
+|---|---|---|---|---|---|---|
+
+Severity:
+
+```text
+P0 Critical
+P1 High
+P2 Medium
+P3 Low
+```
+
+---
+
+## Verification Matrix
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| CF-01 | VERIFIED / FAILED / PARTIAL | |
+| CF-02 | VERIFIED / FAILED / PARTIAL | |
+| CF-03 | VERIFIED / FAILED / PARTIAL | |
+| CF-04 | VERIFIED / FAILED / PARTIAL | |
+| CF-05 | VERIFIED / FAILED / PARTIAL | |
+| CF-06 | VERIFIED / FAILED / PARTIAL | |
+| CF-07 | VERIFIED / FAILED / PARTIAL | |
+| CF-08 | VERIFIED / FAILED / PARTIAL | |
+| CF-09 | VERIFIED / FAILED / PARTIAL | |
+
+---
+
+## Source Lifecycle Matrix
+
+Provide real examples:
+
+| Entity | Source | Selected | Fetched | Parsed | Fact Produced | Used in Analysis | Reported |
+|---|---|---:|---:|---:|---:|---:|---:|
+
+---
+
+## Provenance Examples
+
+Provide at least 5 complete chains:
+
+```text
+Fact
+→ Entity
+→ Source ID
+→ URL
+→ HTTP retrieval
+→ Document
+→ Parser
+→ Extracted value
+→ Analysis
+```
+
+---
+
+## Financial Recalculation
+
+Show independent calculations for at least 5 entities.
+
+For every ratio:
+
+```text
+raw input facts
+→ formula
+→ calculation
+→ Aegis result
+→ independent result
+→ match/mismatch
+```
+
+---
+
+## Open-World Result
+
+List all unseen entities tested and whether the architecture handled them without entity-specific production code.
+
+---
+
+## Test-the-Tests Result
+
+For every critical regression test state:
+
+```text
+Can fail correctly: YES / NO
+```
+
+---
+
+## Remaining Limitations
+
+Clearly distinguish:
+
+```text
+known limitation
+```
+
+from:
+
+```text
+correctness defect
+```
+
+and:
+
+```text
+security defect
+```
+
+---
+
+# 53. MOST IMPORTANT RULE
+
+Do not produce a positive verdict simply because the remediation agent reports:
+
+```text
+11/11 tests passed
+```
+
+Do not accept:
+
+```text
+READY FOR HOSTILE VERIFICATION
+```
+
+as evidence.
+
+The only acceptable basis for approval is independently reproducible evidence that:
+
+```text
+correct entity
++
+correct jurisdiction
++
+correct source
++
+actual retrieval
++
+actual document
++
+correct fact
++
+immutable provenance
++
+correct fiscal period
++
+correct currency
++
+correct consolidation
++
+independent calculation
+=
+correct final analysis
+```
+
+If any critical link in this chain is fabricated, spoofed, ambiguous, silently substituted, or unverifiable:
+
+```text
+NOT APPROVED — REMEDIATION REQUIRED
+```
+
+If evidence is insufficient to establish correctness:
+
+```text
+INSUFFICIENT EVIDENCE
+```
+
+Do not modify production code to obtain a passing result.
+
+## FINAL PRINCIPLE
+
+**Audit the implementation, not the claims about the implementation.**

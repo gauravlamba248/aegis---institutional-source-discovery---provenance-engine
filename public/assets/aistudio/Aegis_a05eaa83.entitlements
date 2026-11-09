@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Hardened Runtime & App Sandbox Boundaries -->
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    
+    <!-- Outbound network access for secure browser (dynamically neutralized during air-gap) -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+    
+    <!-- Access to Homebrew runtime and LLM inference engine -->
+    <key>com.apple.security.temporary-exception.files.absolute-path.read-only</key>
+    <array>
+        <string>/opt/homebrew/</string>
+        <string>/usr/local/</string>
+    </array>
+    
+    <!-- User-selected file access for NSSavePanel vault retrieval -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+    
+    <!-- Low-level hardening: Disallow unsigned code execution and memory tampering -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <false/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <false/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <false/>
+</dict>
+</plist>

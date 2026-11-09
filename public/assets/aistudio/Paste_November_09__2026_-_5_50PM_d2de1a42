@@ -1,0 +1,1695 @@
+# AEGIS — FINAL REMEDIATION OF REMAINING EVIDENCE, ENTITY & PROVENANCE FAILURES
+
+## ROLE
+
+Act as a senior security engineer, data-provenance engineer, financial-analysis engineer, entity-resolution engineer, and adversarial software auditor.
+
+You are modifying the existing Aegis codebase.
+
+A previous independent hostile verification concluded:
+
+**NOT APPROVED — REMEDIATION REQUIRED**
+
+Do NOT treat the previous remediation report as proof that the system is fixed.
+
+The latest hostile verification found that several important fixes are valid, but **CF-02, CF-03, CF-06, CF-07 and CF-08 remain defective**, with additional weaknesses in source lifecycle semantics and test quality.
+
+Your job is to **actually fix the production implementation**, not merely modify tests until they pass.
+
+---
+
+# 1. NON-NEGOTIABLE RULES
+
+1. Do not fabricate evidence.
+2. Do not fabricate financial values.
+3. Do not fabricate source metadata.
+4. Do not fabricate HTTP status, file size, publication date, source URL, source tier, or provenance.
+5. Do not create synthetic candidate facts.
+6. Do not use fallback data that appears to be real evidence.
+7. Do not weaken security controls to make tests pass.
+8. Do not delete or disable failing tests.
+9. Do not replace a failing test with a weaker test.
+10. Do not add special-case company hacks merely to pass the listed entities.
+11. Do not create a closed-world company database disguised as an entity resolver.
+12. Do not treat search-result ranking as evidence authority.
+13. Do not treat a source as USED merely because it was selected.
+14. Do not claim a source produced a fact unless the fact was actually extracted from that source.
+15. Do not allow one source's values to be attributed to another source.
+16. Do not use Wikipedia as a PRIMARY_FACT source.
+17. Do not silently default an unknown foreign company to the United States.
+18. Do not silently convert an ambiguous entity into a known company.
+19. Do not use a test condition that passes merely because the expected fact is absent.
+20. Preserve the fixes that already passed CF-01, CF-04, CF-05 and CF-09.
+
+The objective is **correctness**, not test-passing.
+
+---
+
+# 2. FIRST: INSPECT THE CURRENT IMPLEMENTATION
+
+Before modifying code:
+
+1. Inspect the complete current implementation.
+2. Locate:
+   - `CrossValidator`
+   - `FactExtractor`
+   - `LiveEvidenceCollector`
+   - `SourceDiscoverer`
+   - `SourceSelector`
+   - `EntityResolver`
+   - jurisdiction/country resolution
+   - Wikidata integration
+   - SEC/XBRL matching
+   - GitHub/open-source discovery
+   - financial analysis input contracts
+   - source lifecycle/status handling
+   - existing hostile/adversarial tests
+3. Trace the runtime path end-to-end.
+4. Identify every place where:
+   - facts are created
+   - facts are copied
+   - facts are attributed to sources
+   - candidate values are generated
+   - sources transition between states
+   - entity identity is assigned
+   - jurisdiction is assigned
+5. Do not rely on filenames alone. Follow actual runtime behavior.
+
+Produce an internal dependency map before making changes.
+
+---
+
+# 3. CF-02 — ELIMINATE SYNTHETIC CROSS-SOURCE CONSENSUS
+
+## Critical defect
+
+The latest hostile audit found that `CrossValidator.ts` still creates a second `candidateValues` entry when only one source actually produced the metric.
+
+This creates false consensus.
+
+For example:
+
+```text
+Source A actually produced revenue = X
+Source B produced nothing
+
+Current system:
+candidateValues = [
+    Source A -> X,
+    Source B -> X
+]
+
+Result:
+EXACT_CONSENSUS
+```
+
+This is invalid.
+
+## Required fix
+
+`candidateValues` must contain **only independently observed/extracted values**.
+
+If one source produced a fact:
+
+```text
+candidateValues = [
+    Source A -> X
+]
+```
+
+That is one-source evidence.
+
+It must NOT become:
+
+```text
+Source B -> X
+```
+
+unless Source B independently produced X.
+
+### Hard requirement
+
+Delete the synthetic candidate-generation path.
+
+Search for logic equivalent to:
+
+```text
+candidateValues.push(...)
+```
+
+or any fallback/copy/normalization logic that creates a source observation without an actual extraction event.
+
+Remove or redesign it.
+
+---
+
+# 4. SOURCE PROVENANCE MUST BE IMMUTABLE
+
+Create or enforce a provenance model where a fact retains its actual origin.
+
+Conceptually:
+
+```text
+ProvenancedFact
+
+entityId
+metric
+value
+currency
+fiscalYear
+periodStart
+periodEnd
+periodType
+consolidationBasis
+
+sourceId
+sourceUrl
+retrievedUrl
+retrievedAt
+
+httpStatus
+contentType
+contentLength
+
+extractionMethod
+extractionLocation
+evidenceFingerprint
+
+sourceAuthority
+sourceTier
+
+provenanceState
+```
+
+The exact implementation may differ, but the invariant must remain:
+
+> A fact cannot be attributed to a source that did not actually produce that fact.
+
+No later stage may overwrite the original provenance merely because another source was selected.
+
+---
+
+# 5. FIX SOURCE LIFECYCLE
+
+The latest audit found that selected sources are marked `USED` before extraction.
+
+This is incorrect.
+
+Implement a truthful lifecycle.
+
+Minimum conceptual state:
+
+```text
+DISCOVERED
+↓
+SELECTED
+↓
+FETCHED
+↓
+PARSED
+↓
+PRODUCED_FACT
+↓
+USED_IN_ANALYSIS
+```
+
+A source that is selected but produces zero facts must NOT become `USED`.
+
+For example:
+
+```text
+Source A:
+SELECTED
+FETCHED
+PARSED
+PRODUCED_FACT
+USED_IN_ANALYSIS
+
+Source B:
+SELECTED
+FETCHED
+PARSED
+NO_FACT
+```
+
+Source B must remain a non-contributing source.
+
+Do not use:
+
+```text
+selected = used
+```
+
+or equivalent logic.
+
+The final report must distinguish:
+
+- discovered sources
+- selected sources
+- successfully fetched sources
+- successfully parsed sources
+- sources that produced facts
+- sources actually used in analysis
+
+---
+
+# 6. SOURCE CONSENSUS MUST BE BASED ON REAL OBSERVATIONS
+
+Redesign cross-validation so that:
+
+```text
+number of candidate values
+=
+number of independent source observations
+```
+
+Never:
+
+```text
+number of selected sources
+```
+
+and never:
+
+```text
+number of expected sources
+```
+
+If only one source produces a metric:
+
+```text
+consensus = SINGLE_SOURCE
+```
+
+not:
+
+```text
+EXACT_CONSENSUS
+```
+
+If two genuinely independent sources produce the same metric:
+
+```text
+EXACT_CONSENSUS
+```
+
+may be appropriate.
+
+If values differ:
+
+```text
+DISAGREEMENT
+```
+
+must be represented explicitly.
+
+If one source has no fact:
+
+```text
+NO_OBSERVATION
+```
+
+not an inferred matching value.
+
+---
+
+# 7. CF-03 — FIX OPEN-SOURCE ENTITY MATCHING
+
+## PostgreSQL failure
+
+The latest audit found:
+
+```text
+https://github.com/postgres/postgres
+```
+
+was correctly discovered, but the entity match score was only 57%, below the 60% selection threshold.
+
+Therefore the official PostgreSQL repository produced zero facts.
+
+This is a production defect.
+
+The previous claim that PostgreSQL had >16,000 GitHub stars was not supported by the current runtime.
+
+## Required fix
+
+When an open-source project is explicitly identified as a technology/project/software entity, repository identity must be evaluated using stronger authoritative signals.
+
+Use evidence such as:
+
+- Wikidata official repository property
+- official project website
+- official organization domain
+- GitHub organization/repository relationship
+- repository metadata
+- canonical project name
+- known official homepage
+- package ecosystem metadata where appropriate
+
+Do NOT simply lower the global threshold.
+
+Do NOT create:
+
+```text
+if entity == PostgreSQL:
+    score = 100
+```
+
+The solution must generalize.
+
+---
+
+# 8. OPEN-SOURCE ENTITY MATCHING MUST BE DOMAIN-AWARE
+
+Distinguish:
+
+```text
+COMPANY
+SOFTWARE
+OPEN_SOURCE_PROJECT
+TECHNOLOGY
+LIBRARY
+FRAMEWORK
+DATABASE
+PROGRAMMING_LANGUAGE
+BIOLOGICAL_ENTITY
+PLACE
+PERSON
+```
+
+Entity scoring must incorporate the requested analysis context.
+
+For example:
+
+```text
+"Python technology"
+"Python programming language"
+"Python software"
+```
+
+must not be interpreted as:
+
+```text
+Python biological/genus entity
+```
+
+merely because Wikidata contains biological entities with the same label.
+
+---
+
+# 9. FIX PYTHON AMBIGUITY
+
+The hostile audit found that Python was blocked because a biological `genus of` relationship triggered ambiguity despite explicit:
+
+```text
+TECHNOLOGY_ANALYSIS
+```
+
+and open-source/programming signals.
+
+Fix the resolver so contextual intent participates in entity disambiguation.
+
+When the query explicitly indicates:
+
+```text
+technology
+software
+programming
+language
+library
+framework
+database
+repository
+GitHub
+open source
+package
+```
+
+biological matches should receive appropriate negative relevance unless biological context is also present.
+
+Do not eliminate biological ambiguity detection globally.
+
+Make the decision context-aware.
+
+---
+
+# 10. TEST FOR OPEN-SOURCE ENTITIES PROPERLY
+
+Tests must require an actual fact when the test claims the official repository was discovered.
+
+Bad:
+
+```text
+if (starsFact) {
+    assert(...)
+}
+```
+
+This is vacuous because the test passes when `starsFact == null`.
+
+Replace it with:
+
+```text
+assert(starsFact != null)
+```
+
+or an equivalent mandatory assertion.
+
+Then verify:
+
+1. repository URL
+2. entity identity
+3. HTTP status
+4. actual retrieved content
+5. extracted metric
+6. metric provenance
+7. timestamp/retrieval metadata
+8. source authority
+9. analysis consumption
+
+Test at least:
+
+```text
+PostgreSQL
+Redis
+Kubernetes
+Rust
+Linux
+Nginx
+Python
+```
+
+---
+
+# 11. CF-06 — IMPROVE AMBIGUOUS ENTITY RESOLUTION
+
+The current resolver correctly handles many ambiguous names, but:
+
+```text
+Amazon
+```
+
+still resolves directly to Amazon.com despite obvious competing meanings.
+
+Fix ambiguity handling.
+
+Entity resolution must consider:
+
+- entity type
+- user intent
+- geographic context
+- organization metadata
+- canonical name
+- official domain
+- Wikidata entity type
+- industry
+- known aliases
+- query context
+
+If ambiguity remains unresolved:
+
+```text
+HALT — AMBIGUOUS_ENTITY
+```
+
+Do not silently choose a company simply because it has the highest search ranking.
+
+Also make rate limiting robust so that rapid repeated entity tests do not convert temporary resolution failures into misleading semantic failures.
+
+Use:
+
+- caching where safe
+- request deduplication
+- bounded retry
+- backoff
+- clear distinction between `AMBIGUOUS`, `RATE_LIMITED`, `NETWORK_FAILURE`, and `NOT_FOUND`
+
+Do not fabricate a result during rate limiting.
+
+---
+
+# 12. CF-07 — REMOVE DEFAULT-US JURISDICTION FALLBACK
+
+This is a major requirement.
+
+The current implementation contains logic equivalent to:
+
+```text
+country = "United States"
+jurisdictionCode = "US"
+```
+
+as a default.
+
+This is unacceptable for an open-world financial analysis system.
+
+A foreign company must never become US merely because country resolution failed.
+
+For example:
+
+```text
+TSMC
+Vale
+```
+
+must not automatically become:
+
+```text
+US
+```
+
+because they are SEC 20-F filers.
+
+SEC filing location does not necessarily equal country of incorporation.
+
+---
+
+# 13. IMPLEMENT EVIDENCE-BASED JURISDICTION RESOLUTION
+
+Jurisdiction should be derived from the strongest available evidence.
+
+Potential evidence:
+
+1. official company legal entity information
+2. regulator filing country/state of incorporation
+3. exchange listing/jurisdiction metadata
+4. official investor-relations material
+5. authoritative company registry
+6. Wikidata country information
+7. financial filing currency
+8. official company domain/geography
+9. other authoritative structured metadata
+
+Financial reporting currency alone must NOT determine incorporation country, but it can contribute evidence.
+
+Example:
+
+```text
+TSMC
+Taiwan
+TWD
+SEC 20-F
+```
+
+must not become US merely because SEC data exists.
+
+---
+
+# 14. JURISDICTION CONFIDENCE
+
+Return something conceptually equivalent to:
+
+```text
+jurisdiction:
+    country
+    jurisdictionCode
+    confidence
+    evidence[]
+```
+
+If jurisdiction cannot be determined confidently:
+
+```text
+JURISDICTION_UNRESOLVED
+```
+
+is preferable to:
+
+```text
+US
+```
+
+Do not silently invent certainty.
+
+---
+
+# 15. REDUCE FALSE AMBIGUITY FOR VALID FOREIGN COMPANIES
+
+The hostile audit found several legitimate foreign companies incorrectly halted:
+
+```text
+Sony
+Nestle
+DBS
+BHP
+AstraZeneca
+Petrobras
+Volvo
+```
+
+Fix the resolver so that legitimate organizations can be resolved from authoritative evidence without simply lowering ambiguity thresholds.
+
+The solution must generalize to:
+
+```text
+Europe
+Asia
+South America
+Canada
+Australia
+Middle East
+Africa
+```
+
+and not only the currently tested countries.
+
+---
+
+# 16. CF-08 — FIX WIKIDATA ENTITY POLLUTION
+
+The resolver currently allows incorrect Wikidata items such as:
+
+```text
+Wikinews article
+foundation
+news/scandal item
+```
+
+to contaminate company resolution.
+
+A valid company entity must satisfy appropriate entity-type constraints.
+
+Reject Wikidata results representing:
+
+- news articles
+- events
+- scandals
+- people
+- foundations
+- biological entities
+- places
+- generic concepts
+- unrelated organizations
+
+unless the requested analysis explicitly targets that entity type.
+
+For company analysis, prioritize:
+
+```text
+business/company/organization/corporation
+```
+
+with supporting corporate evidence.
+
+---
+
+# 17. COMMONWEALTH BANK OF AUSTRALIA
+
+The hostile test found:
+
+```text
+Commonwealth Bank of Australia
+```
+
+can resolve to a Wikinews article title instead of the company.
+
+Fix this using entity-type validation and canonical corporate evidence.
+
+The resolver must prefer the actual company entity.
+
+---
+
+# 18. NOVO NORDISK
+
+The hostile test found:
+
+```text
+Novo Nordisk
+```
+
+can resolve to a foundation rather than the operating pharmaceutical company.
+
+Fix the entity selection.
+
+Do not special-case only Novo Nordisk.
+
+The same protection must work for:
+
+```text
+companies
+foundations
+news entities
+subsidiaries
+holding companies
+brands
+```
+
+---
+
+# 19. SEC NAME NORMALIZATION
+
+Fix legitimate SEC/company matching failures caused by formatting differences such as:
+
+```text
+/NEW
+```
+
+versus:
+
+```text
+NEW
+```
+
+and:
+
+```text
+&
+```
+
+versus:
+
+```text
+AND
+```
+
+Normalization should handle:
+
+- punctuation
+- ampersands
+- legal suffixes
+- whitespace
+- parenthetical text
+- `/NEW`
+- `AND` / `&`
+- capitalization
+
+without destroying identity distinctions.
+
+Do NOT make normalization so aggressive that different companies become identical.
+
+---
+
+# 20. FIX PDF VALIDATION
+
+The latest audit found that a `.pdf` URL can return:
+
+```text
+HTTP 200
+Content-Type: text/html
+```
+
+and the system still sends it to the PDF parser.
+
+Add content validation.
+
+At minimum:
+
+```text
+HTTP status == 200
+AND
+content is actually PDF
+```
+
+Validate PDF magic bytes:
+
+```text
+%PDF-
+```
+
+before invoking PDF parsing.
+
+Reject:
+
+```text
+HTML masquerading as PDF
+JSON masquerading as PDF
+error pages
+login pages
+redirect landing pages
+```
+
+Do not rely only on:
+
+```text
+URL.endsWith(".pdf")
+```
+
+---
+
+# 21. PRESERVE THE VERIFIED CF-01 FIX
+
+Do NOT regress the financial-period correction.
+
+The system must continue selecting facts with matching:
+
+- entity
+- fiscal year
+- period end
+- period type
+- currency
+- consolidation basis
+
+The Nvidia hostile test must continue rejecting:
+
+```text
+FY2022 revenue
+```
+
+when analyzing:
+
+```text
+FY2026
+```
+
+Do not weaken period matching to solve any other issue.
+
+---
+
+# 22. PRESERVE CF-04
+
+Wikipedia must remain:
+
+```text
+SECONDARY_REPORTING
+```
+
+where appropriate.
+
+Never allow Wikipedia to become:
+
+```text
+PRIMARY_FACT
+```
+
+when authoritative evidence exists.
+
+Do not allow Wikipedia references to inherit primary authority merely because they point to an official-looking URL.
+
+A source is authoritative because of the source that actually produced the fact, not because an unrelated page links to it.
+
+---
+
+# 23. PRESERVE CF-05
+
+Continue enforcing:
+
+- real HTTP status
+- real response size
+- real retrieval timestamp
+- no fabricated metadata
+- 404 rejection
+- no synthetic source quality
+- no synthetic publication date
+- no fake source metadata
+
+Search the entire codebase for remaining constants resembling:
+
+```text
+2450
+92
+184.5
+64
+48
+```
+
+or equivalent fake telemetry.
+
+Determine whether each occurrence is:
+
+```text
+legitimate configuration
+test fixture
+real measurement
+or fabricated production fallback
+```
+
+Remove fabricated production telemetry.
+
+---
+
+# 24. PRESERVE CF-09
+
+Do not weaken the existing secure network architecture.
+
+Continue enforcing:
+
+- HTTPS
+- SSRF protection
+- loopback blocking
+- link-local blocking
+- cloud metadata blocking
+- redirect revalidation
+- DNS rebinding protection
+- validated-address connection
+- TLS SNI correctness
+- SecureHttpClient routing
+
+Do not introduce direct network calls merely to simplify evidence retrieval.
+
+---
+
+# 25. FACT → SOURCE INTEGRITY
+
+Implement a hard invariant:
+
+```text
+fact.sourceUrl
+MUST correspond to the actual response
+from which the fact was extracted.
+```
+
+A fact extracted from:
+
+```text
+screener.in
+```
+
+cannot be stamped with:
+
+```text
+bseindia.com
+```
+
+because BSE was selected as a preferred source.
+
+Likewise:
+
+```text
+Wikipedia fact
+```
+
+cannot inherit:
+
+```text
+official annual report URL
+```
+
+merely because the Wikipedia page references it.
+
+---
+
+# 26. SOURCE SELECTION ≠ SOURCE USAGE
+
+The final analysis output must separately expose:
+
+```text
+DISCOVERED
+SELECTED
+FETCHED
+PARSED
+FACT-PRODUCING
+ANALYSIS-USED
+REJECTED
+```
+
+For every source, explain why it entered each state.
+
+Example:
+
+```text
+Source A
+SELECTED
+FETCHED
+PARSED
+FACT_PRODUCING
+ANALYSIS_USED
+
+Source B
+SELECTED
+FETCHED
+PARSED
+NO_FACT
+
+Source C
+DISCOVERED
+REJECTED
+```
+
+Never report:
+
+```text
+USED
+```
+
+for a source that produced no fact.
+
+---
+
+# 27. FINANCIAL ANALYSIS MUST NEVER CONVERT ABSENCE INTO EVIDENCE
+
+If a source has no value:
+
+```text
+value = null
+```
+
+not:
+
+```text
+value = another source's value
+```
+
+If data is unavailable:
+
+```text
+UNAVAILABLE
+```
+
+If entity resolution is uncertain:
+
+```text
+UNRESOLVED
+```
+
+If source extraction failed:
+
+```text
+EXTRACTION_FAILED
+```
+
+Do not convert these states into numeric fallback values.
+
+---
+
+# 28. PRIVATE COMPANY BEHAVIOR
+
+Continue the correct behavior for:
+
+```text
+SpaceX
+OpenAI
+```
+
+when reliable public financial data is unavailable.
+
+The system may return:
+
+```text
+0 primary facts
+missing metrics
+confidence 0
+```
+
+or another accurately explained incomplete result.
+
+It must NOT invent:
+
+- revenue
+- net income
+- assets
+- liabilities
+- margins
+- valuation
+
+---
+
+# 29. UNSEEN-ENTITY TESTING
+
+Do not only test the previously known companies.
+
+Add live/open-world validation for at least:
+
+```text
+Costco
+Eli Lilly
+Novo Nordisk
+TSMC
+Banco Santander
+ITOCHU
+Vale
+Commonwealth Bank of Australia
+Caterpillar
+Equinor
+```
+
+and the previously problematic:
+
+```text
+PostgreSQL
+Python
+Amazon
+Nvidia
+Bajaj Finance
+ASML
+```
+
+The implementation must not contain entity-specific branches for these names.
+
+---
+
+# 30. TEST-THE-TESTS
+
+Audit every relevant test.
+
+A test is invalid if it can pass when the required behavior did not happen.
+
+Examples of invalid patterns:
+
+```text
+if (fact) {
+    assert(...)
+}
+```
+
+when the fact is required.
+
+or:
+
+```text
+expect(result).toBeDefined()
+```
+
+when correctness requires a specific source/value/entity.
+
+Every critical test must fail if the production implementation silently:
+
+- returns zero facts
+- chooses the wrong company
+- attributes the wrong source
+- uses synthetic data
+- defaults to US
+- resolves a news article
+- resolves a foundation
+- skips the actual repository
+- fabricates consensus
+
+---
+
+# 31. ADD INVARIANT TESTS
+
+Create automated invariants.
+
+### Provenance invariant
+
+```text
+No fact may reference a source that did not produce it.
+```
+
+### Consensus invariant
+
+```text
+No candidate value may exist without an extraction observation.
+```
+
+### Source lifecycle invariant
+
+```text
+USED_IN_ANALYSIS => PRODUCED_FACT
+```
+
+### Jurisdiction invariant
+
+```text
+UNKNOWN_JURISDICTION != US
+```
+
+### Wikipedia invariant
+
+```text
+Wikipedia != PRIMARY_FACT
+```
+
+### HTTP invariant
+
+```text
+HTTP != 200 => no facts
+```
+
+### PDF invariant
+
+```text
+non-PDF content => PDF parser not invoked
+```
+
+### Entity invariant
+
+```text
+news article != company
+foundation != operating company
+biological entity != software
+```
+
+### Financial invariant
+
+```text
+ratio inputs must share compatible period/currency/entity/consolidation context
+```
+
+---
+
+# 32. ADVERSARIAL REGRESSION TESTS
+
+Add tests specifically designed to recreate the previously reported failures.
+
+## Test A — Synthetic consensus
+
+One source produces revenue.
+
+Second selected source produces no revenue.
+
+Expected:
+
+```text
+candidateValues.length == 1
+consensus != EXACT_CONSENSUS
+second source != USED_IN_ANALYSIS
+```
+
+## Test B — Provenance spoof
+
+Source A contains revenue.
+
+Source B is preferred but contains no revenue.
+
+Expected:
+
+```text
+fact.sourceUrl == Source A
+```
+
+never Source B.
+
+## Test C — PostgreSQL
+
+Expected:
+
+```text
+official repository discovered
+repository fetched
+actual metric extracted
+fact exists
+fact provenance points to GitHub
+```
+
+## Test D — Python
+
+Expected:
+
+```text
+technology/programming context
+→ programming-language entity
+```
+
+not biological ambiguity.
+
+## Test E — Amazon
+
+Bare:
+
+```text
+Amazon
+```
+
+must not silently resolve to Amazon.com if ambiguity remains.
+
+## Test F — TSMC
+
+Expected:
+
+```text
+Taiwan
+```
+
+or another evidence-supported jurisdiction.
+
+Never:
+
+```text
+United States
+```
+
+merely because SEC data exists.
+
+## Test G — Vale
+
+Same requirement.
+
+## Test H — Commonwealth Bank
+
+Expected:
+
+```text
+Commonwealth Bank of Australia
+```
+
+not a Wikinews article.
+
+## Test I — Novo Nordisk
+
+Expected:
+
+```text
+Novo Nordisk operating company
+```
+
+not foundation.
+
+## Test J — fake PDF
+
+HTTP 200 HTML returned from `.pdf`.
+
+Expected:
+
+```text
+rejected as non-PDF
+no PDF facts
+```
+
+---
+
+# 33. LIVE EVIDENCE REQUIREMENT
+
+Where the test claims live evidence:
+
+Prove:
+
+```text
+request occurred
+response occurred
+response status
+response content
+parsing occurred
+fact extracted
+fact provenance assigned
+fact consumed
+```
+
+Do not use:
+
+```text
+mock
+fixture
+hardcoded URL
+hardcoded response
+hardcoded metric
+synthetic metadata
+```
+
+unless the test explicitly states that it is a unit test.
+
+Clearly distinguish:
+
+```text
+UNIT TEST
+INTEGRATION TEST
+LIVE NETWORK TEST
+ADVERSARIAL TEST
+REGRESSION TEST
+```
+
+---
+
+# 34. OPEN-WORLD REQUIREMENT
+
+The implementation must remain capable of analyzing entities not present in a static registry.
+
+Search the codebase for:
+
+- static company registries
+- company-specific URL branches
+- entity-specific numerical fallbacks
+- hardcoded company financial values
+- company-specific source overrides
+- hidden aliases that effectively form a closed-world database
+
+Remove production dependencies on these where they violate the open-world architecture.
+
+Infrastructure configuration and generic source policies are allowed.
+
+Company-specific hacks are not.
+
+---
+
+# 35. ERROR SEMANTICS
+
+Do not collapse different failure types into:
+
+```text
+NOT_FOUND
+```
+
+or:
+
+```text
+AMBIGUOUS
+```
+
+Use meaningful states such as:
+
+```text
+ENTITY_UNRESOLVED
+ENTITY_AMBIGUOUS
+JURISDICTION_UNRESOLVED
+SOURCE_UNAVAILABLE
+SOURCE_REJECTED
+HTTP_ERROR
+PARSE_ERROR
+NO_FACTS_FOUND
+INSUFFICIENT_EVIDENCE
+RATE_LIMITED
+```
+
+This is important for debugging and for preventing false confidence.
+
+---
+
+# 36. CONFIDENCE MODEL
+
+Confidence must reflect actual evidence.
+
+A high confidence score is forbidden when:
+
+- entity identity is uncertain
+- provenance is synthetic
+- only one source exists but consensus is claimed
+- jurisdiction is inferred from weak evidence
+- source was not actually fetched
+- source produced zero facts
+- metrics come from incompatible periods
+- secondary evidence is being treated as primary
+
+Do not simply lower confidence globally.
+
+Fix the underlying evidence model.
+
+---
+
+# 37. NO REGRESSION
+
+After remediation, verify that these previously fixed areas remain correct:
+
+```text
+CF-01 period integrity
+CF-04 Wikipedia source authority
+CF-05 real HTTP/source metadata
+CF-09 network security
+```
+
+If any regression appears, fix it before declaring success.
+
+---
+
+# 38. REQUIRED FINAL VERIFICATION
+
+After implementation, execute:
+
+```text
+unit tests
+integration tests
+adversarial tests
+regression tests
+live entity tests
+live source tests
+financial invariant tests
+provenance tests
+security tests
+```
+
+Then manually inspect representative runtime traces.
+
+At minimum inspect:
+
+```text
+Nvidia
+Bajaj Finance
+Tata Industries
+ASML
+PostgreSQL
+Python
+Amazon
+TSMC
+Vale
+Commonwealth Bank of Australia
+Novo Nordisk
+Costco
+Eli Lilly
+Banco Santander
+ITOCHU
+Equinor
+```
+
+---
+
+# 39. FINAL REPORT FORMAT
+
+Do not simply say:
+
+```text
+All tests passed.
+```
+
+Produce a forensic remediation report containing:
+
+## A. Changes made
+
+For every defect:
+
+```text
+CF-02
+CF-03
+CF-06
+CF-07
+CF-08
+additional defects
+```
+
+include:
+
+- root cause
+- exact production files changed
+- important functions/classes changed
+- implementation approach
+- why the fix generalizes
+
+## B. Before → After
+
+Show the relevant runtime behavior before and after.
+
+## C. Provenance proof
+
+For representative facts show:
+
+```text
+metric
+value
+source URL
+actual retrieved URL
+HTTP status
+retrieval timestamp
+extraction method
+fact ID
+analysis usage
+```
+
+## D. Source lifecycle proof
+
+Show:
+
+```text
+DISCOVERED
+SELECTED
+FETCHED
+PARSED
+PRODUCED_FACT
+USED_IN_ANALYSIS
+```
+
+with no false USED states.
+
+## E. Entity-resolution proof
+
+Show:
+
+```text
+query
+resolved entity
+entity type
+jurisdiction
+confidence
+authoritative evidence
+```
+
+## F. Financial correctness
+
+Independently recompute representative ratios from the raw extracted values.
+
+Do not merely trust the financial engine's output.
+
+## G. Negative tests
+
+Demonstrate that:
+
+- synthetic consensus is rejected
+- provenance spoofing is rejected
+- wrong Wikidata entity is rejected
+- foreign company does not default to US
+- fake PDF is rejected
+- ambiguous Amazon is not silently forced
+- absent PostgreSQL fact cannot make the test pass
+
+## H. Test integrity
+
+Explain how you verified that the tests themselves are non-vacuous.
+
+## I. Remaining limitations
+
+List every remaining known limitation.
+
+Do not hide limitations.
+
+---
+
+# 40. FINAL VERDICT
+
+Use exactly one of:
+
+```text
+APPROVED FOR PRODUCTION
+```
+
+or:
+
+```text
+NOT APPROVED — REMEDIATION REQUIRED
+```
+
+or:
+
+```text
+INSUFFICIENT EVIDENCE
+```
+
+Use `APPROVED FOR PRODUCTION` only if the production behavior—not merely the tests—demonstrates:
+
+1. truthful provenance
+2. genuine source consensus
+3. correct source lifecycle
+4. correct open-source entity matching
+5. context-aware entity resolution
+6. correct foreign jurisdiction resolution
+7. correct Wikidata entity filtering
+8. correct SEC normalization
+9. correct PDF validation
+10. no synthetic financial evidence
+11. no closed-world company dependency
+12. no security regression
+
+If any critical defect remains, use:
+
+```text
+NOT APPROVED — REMEDIATION REQUIRED
+```
+
+Do not inflate confidence merely because the test count is high.
+
+---
+
+# MOST IMPORTANT OBJECTIVE
+
+The goal is not to make Aegis appear correct.
+
+The goal is to make Aegis **actually correct**.
+
+If the system cannot prove a fact, it must say that it cannot prove it.
+
+If it cannot identify an entity, it must say so.
+
+If a source was not used, it must say so.
+
+If only one source produced a value, it must not pretend multiple sources agreed.
+
+If jurisdiction is unknown, it must not silently call it US.
+
+If evidence is unavailable, it must remain unavailable.
+
+**Truthful incompleteness is preferable to fabricated completeness.**

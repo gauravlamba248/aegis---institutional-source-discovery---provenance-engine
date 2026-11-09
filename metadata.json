@@ -1,0 +1,6 @@
+{
+  "name": "Aegis — Institutional Source Discovery & Provenance Engine",
+  "description": "Jurisdiction-aware corporate entity resolution, 6-tier source authority classification, deep document discovery, cross-verification, and provenanced financial analysis engine.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
